@@ -1,0 +1,48 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Parameters:
+  RoleArn:
+    Type: String
+    Description: The ARN of the existing IAM role to be used for Lambda.
+
+Resources:
+  LambdaFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Handler: 'my_glue_script.lambda_handler'
+      Role: !Ref RoleArn
+      Code:
+        S3Bucket: 'my-cb881'
+        S3Key: 'scripts/ezyzip.zip'
+      Runtime: 'python3.8'
+      Timeout: 60
+
+  CloudWatchLogGroup:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      LogGroupName: '/aws/lambda/shiva_lambda_function'
+
+  LambdaCloudWatchEvent:
+    Type: 'AWS::Events::Rule'
+    Properties:
+      ScheduleExpression: 'rate(1 hour)'
+      Targets:
+        - Arn: !GetAtt LambdaFunction.Arn
+          Id: 'shivaLambdaFunction'
+      Name: 'shiva_lambda_scheduled_event'
+
+  LambdaPermission:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !Ref LambdaFunction
+      Principal: 'events.amazonaws.com'
+      SourceArn: !GetAtt LambdaCloudWatchEvent.Arn
+
+Outputs:
+  LambdaFunctionName:
+    Description: 'Name of the Lambda function'
+    Value: !Ref LambdaFunction
+  CloudWatchLogGroupName:
+    Description: 'Name of the CloudWatch log group'
+    Value: !Ref CloudWatchLogGroup
