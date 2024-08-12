@@ -1,0 +1,26 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Parameters:
+  RoleArn:
+    Type: String
+    Description: The ARN of the existing IAM role to be used for Athena.
+
+Resources:
+  AthenaWorkGroup:
+    Type: 'AWS::Athena::WorkGroup'
+    Properties:
+      Name: 'shivathena_workgroup'
+      Description: 'Athena workgroup for Shivathena queries'
+      WorkGroupConfiguration:
+        EnforceWorkGroupConfiguration: true
+        PublishCloudWatchMetricsEnabled: true
+        ResultConfiguration:
+          OutputLocation: 's3://my-cb881/athena-results/'
+      Tags:
+        - Key: 'Name'
+          Value: 'shivathena_workgroup'
+
+Outputs:
+  AthenaWorkGroupName:
+    Description: 'Name of the Athena workgroup'
+    Value: !Ref AthenaWorkGroup
