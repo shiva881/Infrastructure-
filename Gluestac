@@ -1,0 +1,79 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  GlueExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: glue.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole'
+      Policies:
+        - PolicyName: GlueJobPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 's3:GetObject'
+                  - 's3:PutObject'
+                  - 's3:ListBucket'
+                  - 'glue:*'
+                  - 'athena:*'
+                Resource: '*'
+
+  GlueDatabase:
+    Type: 'AWS::Glue::Database'
+    Properties:
+      CatalogId: !Ref 'AWS::AccountId'
+      DatabaseInput:
+        Name: 'shivaglue_database'
+        Description: 'Glue database for Shivaglue jobs'
+
+  GlueCrawler:
+    Type: 'AWS::Glue::Crawler'
+    Properties:
+      Role: !GetAtt GlueExecutionRole.Arn
+      DatabaseName: !Ref GlueDatabase
+      Targets:
+        S3Targets:
+          - Path: 's3://my-cb881/data/'
+      TablePrefix: 'shivaglue_'
+      Name: 'shivaglue_crawler'
+  
+  GlueJob:
+    Type: 'AWS::Glue::Job'
+    Properties:
+      Role: !GetAtt GlueExecutionRole.Arn
+      Command:
+        Name: 'glueetl'
+        ScriptLocation: 's3://my-cb881/scripts/my_glue_scripts.py'
+      GlueVersion: '3.0'
+      MaxCapacity: 2
+      Name: 'shivaglue_job'
+      Timeout: 10
+
+  GlueTrigger:
+    Type: 'AWS::Glue::Trigger'
+    Properties:
+      Type: 'SCHEDULED'
+      Schedule: 'cron(0 0 * * ? *)'  # Runs daily at midnight
+      Actions:
+        - JobName: !Ref GlueJob
+      Name: 'shivaglue_trigger'
+      Description: 'Trigger to run Shivaglue job on a schedule'
+
+Outputs:
+  GlueDatabaseName:
+    Description: 'Name of the Glue database'
+    Value: !Ref GlueDatabase
+  GlueJobName:
+    Description: 'Name of the Glue job'
+    Value: !Ref GlueJob
+  GlueExecutionRoleArn:
+    Description: 'ARN of the Glue execution role'
+    Value: !GetAtt GlueExecutionRole.Arn
