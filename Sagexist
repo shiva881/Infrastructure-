@@ -1,0 +1,41 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Parameters:
+  SubnetId:
+    Type: String
+    Description: The subnet ID for the SageMaker notebook instance.
+  SecurityGroupIds:
+    Type: CommaDelimitedList
+    Description: The security group IDs for the SageMaker notebook instance.
+  RoleArn:
+    Type: String
+    Description: The ARN of the existing IAM role to be used for SageMaker.
+
+Resources:
+  NotebookLifecycleConfig:
+    Type: 'AWS::SageMaker::NotebookInstanceLifecycleConfig'
+    Properties:
+      NotebookInstanceLifecycleConfigName: 'shiva-lifecycle-config'
+      OnStart:
+        - Content: !Base64 |
+            #!/bin/bash
+            set -e
+            echo "Lifecycle configuration script executed successfully." > /home/ec2-user/lifecycle.log
+
+  SageMakerNotebookInstance:
+    Type: 'AWS::SageMaker::NotebookInstance'
+    Properties:
+      NotebookInstanceName: 'shivamaker-notebook'
+      InstanceType: 'ml.t2.medium'
+      RoleArn: !Ref RoleArn
+      VolumeSizeInGB: 10
+      DirectInternetAccess: Enabled
+      RootAccess: Enabled
+      LifecycleConfigName: 'shiva-lifecycle-config'
+      SubnetId: !Ref SubnetId
+      SecurityGroupIds: !Ref SecurityGroupIds
+
+Outputs:
+  SageMakerNotebookInstanceOutput:
+    Description: SageMaker Notebook Instance Name
+    Value: !Ref SageMakerNotebookInstance
