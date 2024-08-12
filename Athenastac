@@ -1,0 +1,47 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  AthenaExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: athena.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/AmazonAthenaFullAccess'
+      Policies:
+        - PolicyName: AthenaPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 's3:GetObject'
+                  - 's3:PutObject'
+                  - 's3:ListBucket'
+                Resource: '*'
+
+  AthenaWorkGroup:
+    Type: 'AWS::Athena::WorkGroup'
+    Properties:
+      Name: 'shivathena_workgroup'
+      Description: 'Athena workgroup for Shivathena queries'
+      WorkGroupConfiguration:
+        EnforceWorkGroupConfiguration: true
+        PublishCloudWatchMetricsEnabled: true
+        ResultConfiguration:
+          OutputLocation: 's3://my-cb881/athena-results/'
+      Tags:
+        - Key: 'Name'
+          Value: 'shivathena_workgroup'
+
+Outputs:
+  AthenaWorkGroupName:
+    Description: 'Name of the Athena workgroup'
+    Value: !Ref AthenaWorkGroup
+  AthenaExecutionRoleArn:
+    Description: 'ARN of the Athena execution role'
+    Value: !GetAtt AthenaExecutionRole.Arn
