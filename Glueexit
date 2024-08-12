@@ -1,0 +1,59 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Parameters:
+  RoleArn:
+    Type: String
+    Description: The ARN of the existing IAM role to be used for Glue.
+
+Resources:
+  GlueDatabase:
+    Type: 'AWS::Glue::Database'
+    Properties:
+      CatalogId: !Ref 'AWS::AccountId'
+      DatabaseInput:
+        Name: 'shivaglue_database'
+        Description: 'Glue database for Shivaglue jobs'
+
+  GlueCrawler:
+    Type: 'AWS::Glue::Crawler'
+    Properties:
+      Role: !Ref RoleArn
+      DatabaseName: !Ref GlueDatabase
+      Targets:
+        S3Targets:
+          - Path: 's3://my-cb881/data/'
+      TablePrefix: 'shivaglue_'
+      Name: 'shivaglue_crawler'
+
+  GlueJob:
+    Type: 'AWS::Glue::Job'
+    Properties:
+      Role: !Ref RoleArn
+      Command:
+        Name: 'glueetl'
+        ScriptLocation: 's3://my-cb881/scripts/my_glue_scripts.py'
+      GlueVersion: '3.0'
+      MaxCapacity: 2
+      Name: 'shivaglue_job'
+      Timeout: 10
+
+  GlueTrigger:
+    Type: 'AWS::Glue::Trigger'
+    Properties:
+      Type: 'SCHEDULED'
+      Schedule: 'cron(0 0 * * ? *)'  # Runs daily at midnight
+      Actions:
+        - JobName: !Ref GlueJob
+      Name: 'shivaglue_trigger'
+      Description: 'Trigger to run Shivaglue job on a schedule'
+
+Outputs:
+  GlueDatabaseName:
+    Description: 'Name of the Glue database'
+    Value: !Ref GlueDatabase
+  GlueJobName:
+    Description: 'Name of the Glue job'
+    Value: !Ref GlueJob
+  GlueExecutionRoleArn:
+    Description: 'ARN of the Glue execution role'
+    Value: !Ref RoleArn
