@@ -1,0 +1,62 @@
+import * as cdk from 'aws-cdk-lib';
+import * as sagemaker from 'aws-cdk-lib/aws-sagemaker';
+import { Construct } from 'constructs';
+
+export interface SagemakerStackProps extends cdk.StackProps {
+  /**
+   * The subnet ID for the SageMaker notebook instance.
+   */
+  readonly subnetId: string;
+  /**
+   * The security group IDs for the SageMaker notebook instance.
+   */
+  readonly securityGroupIds: string[];
+  /**
+   * The ARN of the existing IAM role to be used for SageMaker.
+   */
+  readonly roleArn: string;
+}
+
+export class SagemakerStack extends cdk.Stack {
+  /**
+   * SageMaker Notebook Instance Name
+   */
+  public readonly sageMakerNotebookInstanceOutput;
+
+  public constructor(scope: cdk.App, id: string, props: SagemakerStackProps) {
+    super(scope, id, props);
+
+    // Resources
+    const notebookLifecycleConfig = new sagemaker.CfnNotebookInstanceLifecycleConfig(this, 'NotebookLifecycleConfig', {
+      notebookInstanceLifecycleConfigName: 'shiva-lifecycle-config',
+      onStart: [
+        {
+          content: `#!/bin/bash
+          set -e
+          echo "Lifecycle configuration script executed successfully." > /home/ec2-user/lifecycle.log
+          `,
+        },
+      ],
+    });
+
+    const sageMakerNotebookInstance = new sagemaker.CfnNotebookInstance(this, 'SageMakerNotebookInstance', {
+      notebookInstanceName: 'shivamaker-notebook',
+      instanceType: 'ml.t2.medium',
+      roleArn: props.roleArn!,
+      volumeSizeInGb: 10,
+      directInternetAccess: 'Enabled',
+      rootAccess: 'Enabled',
+      lifecycleConfigName: 'shiva-lifecycle-config',
+      subnetId: props.subnetId!,
+      securityGroupIds: props.securityGroupIds!,
+    });
+
+    // Outputs
+    this.sageMakerNotebookInstanceOutput = sageMakerNotebookInstance.ref;
+    new cdk.CfnOutput(this, 'CfnOutputSageMakerNotebookInstanceOutput', {
+      key: 'SageMakerNotebookInstanceOutput',
+      description: 'SageMaker Notebook Instance Name',
+      value: this.sageMakerNotebookInstanceOutput!.toString(),
+    });
+  }
+}
